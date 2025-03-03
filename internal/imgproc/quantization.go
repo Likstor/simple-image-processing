@@ -3,17 +3,14 @@ package imgproc
 import (
 	"image"
 	"image/color"
-	"log"
 	"math"
 	"sync"
 )
 
-func prepareQuants(k int) map[uint8]uint8 {
-	quants := make(map[uint8]uint8, 256)
+func prepareQuants(k int) [256]uint8 {
+	var quants [256]uint8
 
 	quantSize := int(math.Ceil(256. / float64(k)))
-
-	log.Println(quantSize, k)
 
 	for i := range k {
 		c := uint8(LimitFrom0To255(quantSize - 1 + quantSize*i))
@@ -40,7 +37,7 @@ func Quantization(processedImage *image.RGBA, k int) {
 	quants := prepareQuants(k)
 
 	wg.Add(MAXPROCS)
-	for i := 0; i < MAXPROCS; i++ {
+	for i := range MAXPROCS {
 		go func() {
 			for x := step * i; x < step*(i+1) && x < width; x++ {
 				for y := 0; y < height; y++ {
