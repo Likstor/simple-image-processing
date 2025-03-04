@@ -1,6 +1,8 @@
 package main
 
 import (
+	"container/list"
+	"errors"
 	"fmt"
 	"image/color"
 	"math"
@@ -32,6 +34,7 @@ func CreateToolsContainer(w fyne.Window) fyne.CanvasObject {
 		CreateContrastMenu(w),
 		CreateGammaConversionMenu(w),
 		CreateQuantizationMenu(w),
+		CreatePseudoColoringMenu(w),
 	)
 
 	list := widget.NewList(
@@ -379,7 +382,7 @@ func CreateGammaConversionMenu(w fyne.Window) Tool {
 
 	gammaTitle := container.NewCenter(widget.NewLabel("Gamma parameter"))
 
-	gammaContent := container.NewVBox(gammaTitle,gammaValue, gammaSlider)
+	gammaContent := container.NewVBox(gammaTitle, gammaValue, gammaSlider)
 
 	gammaSlider.OnChanged = func(f float64) {
 		if gammaSlider.Value < 2 && gammaSlider.Value >= 0 {
@@ -478,5 +481,146 @@ func CreateQuantizationMenu(w fyne.Window) Tool {
 	return Tool{
 		Canvas: content,
 		Title:  "Quantization",
+	}
+}
+
+func CreatePseudoColoringMenu(w fyne.Window) Tool {
+	contents := list.New()
+
+	colors := list.New()
+	colorBase := &color.RGBA{A: 255}
+	colors.PushFront(colorBase)
+
+	baseSegmentLabelLeft := widget.NewLabel("Segment from 0")
+	baseSegmentLabelRight := widget.NewLabel(" to 255")
+	colorBasePicker := pickColor(colorBase, "Pick a color", w)
+	baseSlider := widget.NewSlider(0, 255)
+	baseSlider.SetValue(255)
+	baseSlider.Disable()
+	baseSlider.Step = 1
+
+	baseSliderValue := widget.NewLabel(strconv.Itoa(int(baseSlider.Value)))
+	baseSliderValue.Resize(baseSliderValue.MinSize())
+
+	baseSegmentContent := container.NewVBox(container.NewHBox(baseSegmentLabelLeft, baseSegmentLabelRight), container.NewBorder(nil, nil, nil, baseSliderValue, baseSlider), colorBasePicker)
+	
+	contents.PushFront(baseSegmentContent)
+
+	params := container.NewVBox()
+	params.Add(baseSegmentContent)
+
+	paramsScroll := container.NewScroll(params)
+	paramsScroll.ScrollToBottom()
+
+	btnAddSegment := widget.NewButton("Add segment", func() {
+		prevContent := contents.Front().Value.(*fyne.Container)
+		prevSliderLabelLeft := prevContent.Objects[0].(*fyne.Container).Objects[0].(*widget.Label)
+		prevSlider := prevContent.Objects[1].(*fyne.Container).Objects[0].(*widget.Slider)
+
+		colorNew := &color.RGBA{A: 255}
+		colors.PushFront(colorNew)
+
+		newSlider := widget.NewSlider(0, 255)
+
+		val := prevSlider.Value - 1
+		if val < 0 {
+			dialog.ShowError(errors.New("no space for new left segment"), w)
+			return
+		}
+
+		newSlider.SetValue(prevSlider.Value - 1)
+		newSlider.Step = 1
+
+		prevSliderLabelLeft.SetText(fmt.Sprintf("Segment from %0.f", newSlider.Value + 1))
+
+		newSegmentLabelLeft := widget.NewLabel("Segment from 0")
+		newSegmentLabelRight := widget.NewLabel(fmt.Sprintf("to %0.f", newSlider.Value))
+
+		colorPicker := pickColor(colorNew, "Pick a color", w)
+		newSliderValue := widget.NewLabel(strconv.Itoa(int(newSlider.Value)))
+		newSliderValue.Resize(baseSliderValue.MinSize())
+
+		newSegmentContent := container.NewVBox(container.NewHBox(newSegmentLabelLeft, newSegmentLabelRight), container.NewBorder(nil, nil, nil, newSliderValue, newSlider), colorPicker)
+		newElement := contents.PushFront(newSegmentContent)
+
+		newSlider.OnChanged = func(f float64) {
+			if f >= prevSlider.Value {
+				newSlider.SetValue(prevSlider.Value - 1)
+				return
+			}
+			
+			if next := newElement.Prev(); next != nil {
+				nextSlider := next.Value.(*fyne.Container).Objects[1].(*fyne.Container).Objects[0].(*widget.Slider)
+
+				if nextSlider.Value >= f {
+					newSlider.SetValue(nextSlider.Value + 1)
+				}
+			}
+
+			prevSliderLabelLeft.SetText(fmt.Sprintf("Segment from %0.f", newSlider.Value + 1))
+
+			newSegmentLabelRight.SetText(fmt.Sprintf("to %0.f", newSlider.Value))
+
+			newSliderValue.SetText(strconv.Itoa(int(newSlider.Value)))
+
+			newSegmentContent.Refresh()
+		}
+
+		params.Add(newSegmentContent)
+		params.Refresh()
+	})
+
+	btnRemoveSegment := widget.NewButton("Remove segment", func() {
+		if contents.Len() <= 1 {
+			return
+		}
+
+		prevContent := contents.Front().Next().Value.(*fyne.Container)
+		prevSliderLabelLeft := prevContent.Objects[0].(*fyne.Container).Objects[0].(*widget.Label)
+
+		prevSliderLabelLeft.SetText("Segment from 0")
+
+		colors.Remove(colors.Front())
+
+		params.Remove(contents.Remove(contents.Front()).(*fyne.Container))
+		params.Refresh()
+
+	})
+
+	btnAccept := widget.NewButton("Accept", func() {
+		if CurrentImage == nil {
+			dialog.ShowError(ErrImageNotSelected, w)
+			return
+		}
+
+		CurrentImage.SaveStep()
+
+		borders := make([]uint8, 0, contents.Len())
+		colorsSlice := make([]*color.RGBA, 0, contents.Len())
+
+		for el := contents.Front(); el != nil; el = el.Next() {
+			borders = append(borders, uint8(el.Value.(*fyne.Container).Objects[1].(*fyne.Container).Objects[0].(*widget.Slider).Value))
+		}
+
+		for el := colors.Front(); el != nil; el = el.Next() {
+			colorsSlice = append(colorsSlice, el.Value.(*color.RGBA))
+		}
+
+		imgproc.PseudoColoring(CurrentImage.BaseImage, borders, colorsSlice)
+
+		CurrentImage.Refresh()
+	})
+
+	content := container.NewBorder(
+		nil,
+		container.NewVBox(btnAddSegment, btnRemoveSegment, btnAccept),
+		nil,
+		nil,
+		paramsScroll,
+	)
+
+	return Tool{
+		Canvas: content,
+		Title:  "Pseudo coloring",
 	}
 }
