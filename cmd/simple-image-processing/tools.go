@@ -35,6 +35,7 @@ func CreateToolsContainer(w fyne.Window) fyne.CanvasObject {
 		CreateGammaConversionMenu(w),
 		CreateQuantizationMenu(w),
 		CreatePseudoColoringMenu(w),
+		CreateSolarizationMenu(w),
 	)
 
 	list := widget.NewList(
@@ -622,5 +623,32 @@ func CreatePseudoColoringMenu(w fyne.Window) Tool {
 	return Tool{
 		Canvas: content,
 		Title:  "Pseudo coloring",
+	}
+}
+
+func CreateSolarizationMenu(w fyne.Window) Tool {
+	btn := widget.NewButton("Accept", func() {
+		if CurrentImage == nil {
+			dialog.ShowError(ErrImageNotSelected, w)
+			return
+		}
+
+		CurrentImage.SaveStep()
+
+		imgproc.Solarization(CurrentImage.BaseImage)
+
+		CurrentImage.Refresh()
+	})
+
+	content := container.NewBorder(
+		nil,
+		btn,
+		nil,
+		nil,
+	)
+
+	return Tool{
+		Canvas: content,
+		Title:  "Solarization",
 	}
 }
