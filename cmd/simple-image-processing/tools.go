@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"image/color"
+	"log"
 	"math"
 	"simple-image-processing/internal/imgproc"
 	"strconv"
@@ -22,11 +23,16 @@ type Tool struct {
 	Title  string
 }
 
-func CreateToolsContainer(w fyne.Window) fyne.CanvasObject {
-	tools := make([]Tool, 0)
+func CreateNav(w fyne.Window) fyne.CanvasObject {
+	selectLabel := container.NewCenter(widget.NewLabel("Select a tool from the nav panel"))
 
-	tools = append(
-		tools,
+	treeChildIndex := make(map[string][]string)
+	treeChildIndex[""] = []string{"Point processes"}
+
+	objects := make(map[string]fyne.CanvasObject)
+	objects["Point processes"] = selectLabel
+
+	pointTools := []Tool{
 		CreateGrayScaleMenu(w),
 		CreateAdjustBrightnessMenu(w),
 		CreateNegativeMenu(w),
@@ -36,36 +42,62 @@ func CreateToolsContainer(w fyne.Window) fyne.CanvasObject {
 		CreateQuantizationMenu(w),
 		CreatePseudoColoringMenu(w),
 		CreateSolarizationMenu(w),
+	}
+
+	pointToolsNames := make([]string, 0, len(pointTools))
+	for _, pt := range pointTools {
+		pointToolsNames = append(pointToolsNames, pt.Title)
+		objects[pt.Title] = pt.Canvas
+	}
+
+	treeChildIndex["Point processes"] = pointToolsNames
+
+	nav := widget.NewTree(
+		func(tni widget.TreeNodeID) []widget.TreeNodeID {
+			return treeChildIndex[tni]
+		},
+		func(uid string) bool {
+			children, ok := treeChildIndex[uid]
+
+			return ok && len(children) > 0
+		},
+		func(branch bool) fyne.CanvasObject {
+			return widget.NewLabel("Template")
+		},
+		func(tni widget.TreeNodeID, b bool, co fyne.CanvasObject) {
+			_, ok := objects[tni]
+			if !ok {
+				log.Println("Unknown tree element", tni)
+				return
+			}
+
+			co.(*widget.Label).SetText(tni)
+		},
 	)
 
-	list := widget.NewList(
-		func() int {
-			return len(tools)
-		},
-		func() fyne.CanvasObject {
-			return widget.NewLabel("Template tool")
-		},
-		func(id widget.ListItemID, item fyne.CanvasObject) {
-			item.(*widget.Label).SetText(tools[id].Title)
-		},
-	)
-
-	selectLabel := container.NewCenter(widget.NewLabel("Select a tool from the list"))
 	content := container.NewStack(selectLabel)
 
-	list.OnSelected = func(id widget.ListItemID) {
+	nav.OnSelected = func(uid widget.TreeNodeID) {
+		tool, ok := objects[uid]
+		if !ok {
+			content.Objects = []fyne.CanvasObject{
+				selectLabel,
+			}
+			return
+		}
+
 		content.Objects = []fyne.CanvasObject{
-			tools[id].Canvas,
+			tool,
 		}
 	}
 
-	list.OnUnselected = func(id widget.ListItemID) {
+	nav.OnUnselected = func(uid widget.TreeNodeID) {
 		content.Objects = []fyne.CanvasObject{
 			selectLabel,
 		}
 	}
 
-	return container.NewHSplit(list, content)
+	return container.NewHSplit(nav, content)
 }
 
 func CreateNegativeMenu(w fyne.Window) Tool {
@@ -504,7 +536,7 @@ func CreatePseudoColoringMenu(w fyne.Window) Tool {
 	baseSliderValue.Resize(baseSliderValue.MinSize())
 
 	baseSegmentContent := container.NewVBox(container.NewHBox(baseSegmentLabelLeft, baseSegmentLabelRight), container.NewBorder(nil, nil, nil, baseSliderValue, baseSlider), colorBasePicker)
-	
+
 	contents.PushFront(baseSegmentContent)
 
 	params := container.NewVBox()
@@ -532,7 +564,7 @@ func CreatePseudoColoringMenu(w fyne.Window) Tool {
 		newSlider.SetValue(prevSlider.Value - 1)
 		newSlider.Step = 1
 
-		prevSliderLabelLeft.SetText(fmt.Sprintf("Segment from %0.f", newSlider.Value + 1))
+		prevSliderLabelLeft.SetText(fmt.Sprintf("Segment from %0.f", newSlider.Value+1))
 
 		newSegmentLabelLeft := widget.NewLabel("Segment from 0")
 		newSegmentLabelRight := widget.NewLabel(fmt.Sprintf("to %0.f", newSlider.Value))
@@ -549,7 +581,7 @@ func CreatePseudoColoringMenu(w fyne.Window) Tool {
 				newSlider.SetValue(prevSlider.Value - 1)
 				return
 			}
-			
+
 			if next := newElement.Prev(); next != nil {
 				nextSlider := next.Value.(*fyne.Container).Objects[1].(*fyne.Container).Objects[0].(*widget.Slider)
 
@@ -558,7 +590,7 @@ func CreatePseudoColoringMenu(w fyne.Window) Tool {
 				}
 			}
 
-			prevSliderLabelLeft.SetText(fmt.Sprintf("Segment from %0.f", newSlider.Value + 1))
+			prevSliderLabelLeft.SetText(fmt.Sprintf("Segment from %0.f", newSlider.Value+1))
 
 			newSegmentLabelRight.SetText(fmt.Sprintf("to %0.f", newSlider.Value))
 

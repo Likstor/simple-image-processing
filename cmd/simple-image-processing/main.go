@@ -39,9 +39,9 @@ func main() {
 
 	SetupMenu(w)
 
-	toolsContainer := CreateToolsContainer(w)
+	nav := CreateNav(w)
 
-	content := container.NewHSplit(toolsContainer, ImagesContainer)
+	content := container.NewHSplit(nav, ImagesContainer)
 
 	ImagesContainer.OnSelected = func(tab *container.TabItem) {
 		CurrentImage = ImageByTab[tab]
