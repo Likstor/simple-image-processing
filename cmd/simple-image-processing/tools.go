@@ -7,7 +7,7 @@ import (
 	"image/color"
 	"log"
 	"math"
-	"simple-image-processing/internal/imgproc"
+	pp "simple-image-processing/internal/imgproc/point"
 	"strconv"
 
 	"fyne.io/fyne/v2"
@@ -23,14 +23,21 @@ type Tool struct {
 	Title  string
 }
 
+var (
+	PointProcesses = "Point processes"
+	SpatialProcesses = "Spatial processes"
+)
+
 func CreateNav(w fyne.Window) fyne.CanvasObject {
 	selectLabel := container.NewCenter(widget.NewLabel("Select a tool from the nav panel"))
 
 	treeChildIndex := make(map[string][]string)
-	treeChildIndex[""] = []string{"Point processes"}
+	treeChildIndex[""] = []string{PointProcesses, SpatialProcesses}
 
 	objects := make(map[string]fyne.CanvasObject)
-	objects["Point processes"] = selectLabel
+	objects[PointProcesses] = selectLabel
+	objects[SpatialProcesses] = selectLabel
+
 
 	pointTools := []Tool{
 		CreateGrayScaleMenu(w),
@@ -50,7 +57,19 @@ func CreateNav(w fyne.Window) fyne.CanvasObject {
 		objects[pt.Title] = pt.Canvas
 	}
 
-	treeChildIndex["Point processes"] = pointToolsNames
+	treeChildIndex[PointProcesses] = pointToolsNames
+
+	spatialTools := []Tool{
+
+	}
+
+	spatialToolsNames := make([]string, 0, len(spatialTools))
+	for _, pt := range spatialTools {
+		spatialToolsNames = append(spatialToolsNames, pt.Title)
+		objects[pt.Title] = pt.Canvas
+	}
+
+	treeChildIndex[SpatialProcesses] = spatialToolsNames
 
 	nav := widget.NewTree(
 		func(tni widget.TreeNodeID) []widget.TreeNodeID {
@@ -123,7 +142,7 @@ func CreateNegativeMenu(w fyne.Window) Tool {
 
 		CurrentImage.SaveStep()
 
-		imgproc.NegativeWithThreshold(CurrentImage.BaseImage, uint8(thresholdSlider.Value))
+		pp.Negative(CurrentImage.BaseImage, uint8(thresholdSlider.Value))
 
 		CurrentImage.Refresh()
 	})
@@ -156,7 +175,7 @@ func CreateGrayScaleMenu(w fyne.Window) Tool {
 
 		CurrentImage.SaveStep()
 
-		imgproc.GrayScale(CurrentImage.BaseImage)
+		pp.GrayScale(CurrentImage.BaseImage)
 
 		CurrentImage.Refresh()
 	})
@@ -238,7 +257,7 @@ func CreateBinarizationMenu(w fyne.Window) Tool {
 
 		CurrentImage.SaveStep()
 
-		imgproc.ThresholdBinarization(CurrentImage.BaseImage, uint8(thresholdSlider.Value), color1, color2)
+		pp.Binarization(CurrentImage.BaseImage, uint8(thresholdSlider.Value), color1, color2)
 
 		CurrentImage.Refresh()
 	})
@@ -330,9 +349,9 @@ func CreateContrastMenu(w fyne.Window) Tool {
 
 		switch currentType {
 		case increaseContrast:
-			imgproc.IncreaseContrast(CurrentImage.BaseImage, uint8(q1Slider.Value), uint8(q2Slider.Value))
+			pp.IncreaseContrast(CurrentImage.BaseImage, uint8(q1Slider.Value), uint8(q2Slider.Value))
 		case decreaseContrast:
-			imgproc.DecreaseContrast(CurrentImage.BaseImage, uint8(q1Slider.Value), uint8(q2Slider.Value))
+			pp.DecreaseContrast(CurrentImage.BaseImage, uint8(q1Slider.Value), uint8(q2Slider.Value))
 		}
 
 		CurrentImage.Refresh()
@@ -380,7 +399,7 @@ func CreateAdjustBrightnessMenu(w fyne.Window) Tool {
 
 		CurrentImage.SaveStep()
 
-		imgproc.AdjustBrightness(CurrentImage.BaseImage, int(paramSlider.Value))
+		pp.AdjustBrightness(CurrentImage.BaseImage, int(paramSlider.Value))
 
 		CurrentImage.Refresh()
 	})
@@ -445,7 +464,7 @@ func CreateGammaConversionMenu(w fyne.Window) Tool {
 			currentGamma = gammaSlider.Value
 		}
 
-		imgproc.GammaConversion(CurrentImage.BaseImage, currentGamma)
+		pp.GammaConversion(CurrentImage.BaseImage, currentGamma)
 
 		CurrentImage.Refresh()
 	})
@@ -477,7 +496,7 @@ func CreateQuantizationMenu(w fyne.Window) Tool {
 	kValue := widget.NewLabel(strconv.Itoa(int(kSlider.Value)))
 	kValue.Resize(kValue.MinSize())
 
-	kTitle := container.NewCenter(widget.NewLabel("Parameter K"))
+	kTitle := container.NewCenter(widget.NewLabel("Number of quants"))
 
 	kContent := container.NewBorder(kTitle, nil, nil, kValue, kSlider)
 
@@ -493,7 +512,7 @@ func CreateQuantizationMenu(w fyne.Window) Tool {
 
 		CurrentImage.SaveStep()
 
-		imgproc.Quantization(CurrentImage.BaseImage, int(kSlider.Value))
+		pp.Quantization(CurrentImage.BaseImage, int(kSlider.Value))
 
 		CurrentImage.Refresh()
 	})
@@ -639,7 +658,7 @@ func CreatePseudoColoringMenu(w fyne.Window) Tool {
 			colorsSlice = append(colorsSlice, el.Value.(*color.RGBA))
 		}
 
-		imgproc.PseudoColoring(CurrentImage.BaseImage, borders, colorsSlice)
+		pp.PseudoColoring(CurrentImage.BaseImage, borders, colorsSlice)
 
 		CurrentImage.Refresh()
 	})
@@ -667,7 +686,7 @@ func CreateSolarizationMenu(w fyne.Window) Tool {
 
 		CurrentImage.SaveStep()
 
-		imgproc.Solarization(CurrentImage.BaseImage)
+		pp.Solarization(CurrentImage.BaseImage)
 
 		CurrentImage.Refresh()
 	})

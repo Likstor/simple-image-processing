@@ -14,7 +14,7 @@ var HISTOGRAM_RECTANGLE = image.Rectangle{
 	},
 }
 
-func UpdateColorHistogram(img Image, dst *image.RGBA, backgroundColor, lineColor color.RGBA) {
+func UpdateColorHistogram(img *image.RGBA, dst *image.RGBA, backgroundColor, lineColor color.RGBA) {
 	count := make([]float64, 256*3)
 	countRedColor := count[:256]
 	countGreenColor := count[256 : 2*256]
@@ -45,7 +45,7 @@ func UpdateColorHistogram(img Image, dst *image.RGBA, backgroundColor, lineColor
 	DrawRectangle(dst, 0, HISTOGRAM_HEIGHT - 11, HISTOGRAM_WIDTH - 1, HISTOGRAM_HEIGHT - 1, lineColor)
 }
 
-func drawHistogramColumn(histogram Image, percent float64, pos int, c color.RGBA) {
+func drawHistogramColumn(histogram *image.RGBA, percent float64, pos int, c color.RGBA) {
 	if percent == 0 {
 		return
 	}
