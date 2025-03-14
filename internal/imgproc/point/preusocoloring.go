@@ -25,7 +25,7 @@ func prepareColors(borders []uint8, colors []*color.RGBA) [256]*color.RGBA {
 func PseudoColoring(processedImage *image.RGBA, borders []uint8, colors []*color.RGBA) {
 	preparedColors := prepareColors(borders, colors)
 
-	imgproc.MultithreadPointProcessCycle(processedImage.Rect, func(x, y int) {
+	imgproc.MultithreadProcessCycle(processedImage.Rect, func(x, y int) {
 		rgba := processedImage.At(x, y).(color.RGBA)
 
 		I := uint8(0.3*float64(rgba.R) + 0.59*float64(rgba.G) + 0.11*float64(rgba.B))

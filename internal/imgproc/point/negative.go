@@ -7,7 +7,7 @@ import (
 )
 
 func Negative(processedImage *image.RGBA, threshold uint8) {
-	imgproc.MultithreadPointProcessCycle(processedImage.Rect, func(x, y int) {
+	imgproc.MultithreadProcessCycle(processedImage.Rect, func(x, y int) {
 		processedImage.Set(x, y, negativeColor(processedImage.At(x, y).(color.RGBA), threshold))
 	})
 }

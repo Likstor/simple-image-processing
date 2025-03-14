@@ -50,7 +50,7 @@ func drawHistogramColumn(histogram *image.RGBA, percent float64, pos int, c colo
 		return
 	}
 
-	top := (HISTOGRAM_HEIGHT - 10) - int(float64(HISTOGRAM_HEIGHT - 20) * percent)
+	top := (HISTOGRAM_HEIGHT - 11) - int(float64(HISTOGRAM_HEIGHT - 21) * percent)
 
 	topColor := color.RGBA{
 		R: c.R,

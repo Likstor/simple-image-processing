@@ -9,7 +9,7 @@ import (
 func IncreaseContrast(processedImage *image.RGBA, q1, q2 uint8) {
 	coefficient := 255. / float64(q2-q1)
 
-	imgproc.MultithreadPointProcessCycle(processedImage.Rect, func(x, y int) {
+	imgproc.MultithreadProcessCycle(processedImage.Rect, func(x, y int) {
 		rgba := processedImage.At(x, y).(color.RGBA)
 
 		newR := imgproc.LimitFrom0To255(float64(int(rgba.R)-int(q1)) * coefficient)
@@ -28,7 +28,7 @@ func IncreaseContrast(processedImage *image.RGBA, q1, q2 uint8) {
 func DecreaseContrast(processedImage *image.RGBA, q1, q2 uint8) {
 	coefficient := float64(q2-q1) / 255.
 
-	imgproc.MultithreadPointProcessCycle(processedImage.Rect, func(x, y int) {
+	imgproc.MultithreadProcessCycle(processedImage.Rect, func(x, y int) {
 		rgba := processedImage.At(x, y).(color.RGBA)
 
 		newR := imgproc.LimitFrom0To255(float64(q1) + float64(rgba.R)*coefficient)

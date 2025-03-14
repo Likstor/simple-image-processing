@@ -2,6 +2,8 @@ package main
 
 import (
 	"container/list"
+	"errors"
+	"fmt"
 	"image"
 	"image/draw"
 	"io"
@@ -9,6 +11,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 )
 
 type ImageData struct {
@@ -86,7 +89,13 @@ func (img *ImageData) GetCurrentStep() *image.RGBA {
 
 
 func addNewImage(reader io.Reader, uri fyne.URI) {
-	baseImage, _, _ := image.Decode(reader)
+	baseImage, _, err := image.Decode(reader)
+	if err != nil {
+		if errors.Is(err, image.ErrFormat) {
+			dialog.ShowError(fmt.Errorf("unknown image type"), MainWindow)
+			return
+		}
+	}
 
 	processedImage := image.NewRGBA(baseImage.Bounds())
 	draw.Draw(processedImage, baseImage.Bounds(), baseImage, image.Point{}, draw.Src)

@@ -28,7 +28,7 @@ func prepareQuants(k int) [256]uint8 {
 func Quantization(processedImage *image.RGBA, k int) {
 	quants := prepareQuants(k)
 
-	imgproc.MultithreadPointProcessCycle(processedImage.Rect, func(x, y int) {
+	imgproc.MultithreadProcessCycle(processedImage.Rect, func(x, y int) {
 		rgba := processedImage.At(x, y).(color.RGBA)
 
 		processedImage.Set(x, y, color.RGBA{

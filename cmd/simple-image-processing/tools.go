@@ -7,12 +7,15 @@ import (
 	"image/color"
 	"log"
 	"math"
+
 	pp "simple-image-processing/internal/imgproc/point"
+	sp "simple-image-processing/internal/imgproc/spatial"
 	"strconv"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -24,7 +27,7 @@ type Tool struct {
 }
 
 var (
-	PointProcesses = "Point processes"
+	PointProcesses   = "Point processes"
 	SpatialProcesses = "Spatial processes"
 )
 
@@ -38,9 +41,8 @@ func CreateNav(w fyne.Window) fyne.CanvasObject {
 	objects[PointProcesses] = selectLabel
 	objects[SpatialProcesses] = selectLabel
 
-
 	pointTools := []Tool{
-		CreateGrayScaleMenu(w),
+		CreateColorMenu(w),
 		CreateAdjustBrightnessMenu(w),
 		CreateNegativeMenu(w),
 		CreateBinarizationMenu(w),
@@ -60,7 +62,16 @@ func CreateNav(w fyne.Window) fyne.CanvasObject {
 	treeChildIndex[PointProcesses] = pointToolsNames
 
 	spatialTools := []Tool{
-
+		CreateSobelMenu(w),
+		CreateGaussBlurMenu(w),
+		CreateSmoothingMenu(w),
+		CreateSharpnessMenu(w),
+		CreateMedianMenu(w),
+		CreateLaplaceMenu(w),
+		CreateShiftDifMenu(w),
+		CreatePrewittMenu(w),
+		CreateKirschMenu(w),
+		CreateEmbossingMenu(w),
 	}
 
 	spatialToolsNames := make([]string, 0, len(spatialTools))
@@ -166,7 +177,28 @@ func CreateNegativeMenu(w fyne.Window) Tool {
 	}
 }
 
-func CreateGrayScaleMenu(w fyne.Window) Tool {
+const (
+	GrayScale = "GrayScale"
+	Sepia     = "Sepia"
+	Red       = "Red"
+	Green     = "Green"
+	Blue      = "Blue"
+)
+
+func CreateColorMenu(w fyne.Window) Tool {
+	var colorFilterType string
+
+	typeSelect := widget.NewSelect([]string{GrayScale, Sepia, Red, Green, Blue}, func(s string) {
+		colorFilterType = s
+	})
+
+	typeSelect.SetSelected(GrayScale)
+
+	typeLabel := widget.NewLabel("Filter type:")
+	typeContent := container.NewHBox(typeLabel, typeSelect)
+
+	widget.NewEntry()
+
 	btn := widget.NewButton("Accept", func() {
 		if CurrentImage == nil {
 			dialog.ShowError(ErrImageNotSelected, w)
@@ -175,21 +207,38 @@ func CreateGrayScaleMenu(w fyne.Window) Tool {
 
 		CurrentImage.SaveStep()
 
-		pp.GrayScale(CurrentImage.BaseImage)
+		switch colorFilterType {
+		case GrayScale:
+			pp.GrayScale(CurrentImage.BaseImage)
+		case Sepia:
+			pp.Sepia(CurrentImage.BaseImage)
+		case Red:
+			pp.Red(CurrentImage.BaseImage)
+		case Green:
+			pp.Green(CurrentImage.BaseImage)
+		case Blue:
+			pp.Blue(CurrentImage.BaseImage)
+		}
 
 		CurrentImage.Refresh()
 	})
+
+	params := container.NewVBox(typeContent)
+
+	paramsScroll := container.NewScroll(params)
+	paramsScroll.ScrollToBottom()
 
 	content := container.NewBorder(
 		nil,
 		btn,
 		nil,
 		nil,
+		params,
 	)
 
 	return Tool{
 		Canvas: content,
-		Title:  "GrayScale",
+		Title:  "Color",
 	}
 }
 
@@ -701,5 +750,438 @@ func CreateSolarizationMenu(w fyne.Window) Tool {
 	return Tool{
 		Canvas: content,
 		Title:  "Solarization",
+	}
+}
+
+func CreateSobelMenu(w fyne.Window) Tool {
+	var normalizationNeeded bool
+	normalizationCheck := widget.NewCheck("Normalization", func(b bool) {
+		normalizationNeeded = b
+	})
+
+	btn := widget.NewButton("Accept", func() {
+		if CurrentImage == nil {
+			dialog.ShowError(ErrImageNotSelected, w)
+			return
+		}
+
+		CurrentImage.SaveStep()
+		if normalizationNeeded {
+			sp.SobelWithNormalization(CurrentImage.BaseImage)
+		} else {
+			sp.Sobel(CurrentImage.BaseImage)
+		}
+
+		CurrentImage.Refresh()
+	})
+
+	params := container.NewVBox(normalizationCheck)
+
+	paramsScroll := container.NewScroll(params)
+	paramsScroll.ScrollToBottom()
+
+	content := container.NewBorder(
+		nil,
+		btn,
+		nil,
+		nil,
+		params,
+	)
+
+	return Tool{
+		Canvas: content,
+		Title:  "Sobel",
+	}
+}
+
+func CreateGaussBlurMenu(w fyne.Window) Tool {
+	n := 3
+	bindN := binding.BindInt(&n)
+	sizeEntry := widget.NewEntryWithData(binding.IntToString(bindN))
+	sizeLabel := widget.NewLabel("Filter size:")
+	sizeContent := container.NewHBox(sizeLabel, sizeEntry)
+
+	widget.NewEntry()
+
+	btn := widget.NewButton("Accept", func() {
+		if CurrentImage == nil {
+			dialog.ShowError(ErrImageNotSelected, w)
+			return
+		}
+
+		if n%2 == 0 {
+			dialog.ShowError(errors.New("filter size must be odd"), w)
+			return
+		}
+
+		CurrentImage.SaveStep()
+
+		sp.GaussBlur(CurrentImage.BaseImage, n)
+		CurrentImage.Refresh()
+	})
+
+	params := container.NewVBox(sizeContent)
+
+	paramsScroll := container.NewScroll(params)
+	paramsScroll.ScrollToBottom()
+
+	content := container.NewBorder(
+		nil,
+		btn,
+		nil,
+		nil,
+		params,
+	)
+
+	return Tool{
+		Canvas: content,
+		Title:  "Gauss blur",
+	}
+}
+
+const (
+	typeH1 = "H1"
+	typeH2 = "H2"
+	typeH3 = "H3"
+)
+
+func CreateSmoothingMenu(w fyne.Window) Tool {
+	var smoothingType sp.SmoothingType
+
+	typeSelect := widget.NewSelect([]string{typeH1, typeH2, typeH3}, func(s string) {
+		switch s {
+		case typeH1:
+			smoothingType = sp.SmoothingH1
+		case typeH2:
+			smoothingType = sp.SmoothingH2
+		case typeH3:
+			smoothingType = sp.SmoothingH3
+		}
+	})
+
+	typeSelect.SetSelected(typeH1)
+
+	typeLabel := widget.NewLabel("Filter type:")
+	typeContent := container.NewHBox(typeLabel, typeSelect)
+
+	widget.NewEntry()
+
+	btn := widget.NewButton("Accept", func() {
+		if CurrentImage == nil {
+			dialog.ShowError(ErrImageNotSelected, w)
+			return
+		}
+
+		CurrentImage.SaveStep()
+
+		sp.Smoothing(CurrentImage.BaseImage, smoothingType)
+
+		CurrentImage.Refresh()
+	})
+
+	params := container.NewVBox(typeContent)
+
+	paramsScroll := container.NewScroll(params)
+	paramsScroll.ScrollToBottom()
+
+	content := container.NewBorder(
+		nil,
+		btn,
+		nil,
+		nil,
+		params,
+	)
+
+	return Tool{
+		Canvas: content,
+		Title:  "Smoothing",
+	}
+}
+
+func CreateSharpnessMenu(w fyne.Window) Tool {
+	var sharpnessType sp.SharpnessType
+
+	typeSelect := widget.NewSelect([]string{typeH1, typeH2, typeH3}, func(s string) {
+		switch s {
+		case typeH1:
+			sharpnessType = sp.SharpnessH1
+		case typeH2:
+			sharpnessType = sp.SharpnessH2
+		case typeH3:
+			sharpnessType = sp.SharpnessH3
+		}
+	})
+
+	typeSelect.SetSelected(typeH1)
+
+	typeLabel := widget.NewLabel("Filter type:")
+	typeContent := container.NewHBox(typeLabel, typeSelect)
+
+	widget.NewEntry()
+
+	btn := widget.NewButton("Accept", func() {
+		if CurrentImage == nil {
+			dialog.ShowError(ErrImageNotSelected, w)
+			return
+		}
+
+		CurrentImage.SaveStep()
+
+		sp.Sharpness(CurrentImage.BaseImage, sharpnessType)
+
+		CurrentImage.Refresh()
+	})
+
+	params := container.NewVBox(typeContent)
+
+	paramsScroll := container.NewScroll(params)
+	paramsScroll.ScrollToBottom()
+
+	content := container.NewBorder(
+		nil,
+		btn,
+		nil,
+		nil,
+		params,
+	)
+
+	return Tool{
+		Canvas: content,
+		Title:  "Sharpness",
+	}
+}
+
+func CreateMedianMenu(w fyne.Window) Tool {
+	n := 3
+	bindN := binding.BindInt(&n)
+	sizeEntry := widget.NewEntryWithData(binding.IntToString(bindN))
+	sizeLabel := widget.NewLabel("Filter size:")
+	sizeContent := container.NewHBox(sizeLabel, sizeEntry)
+
+	widget.NewEntry()
+
+	btn := widget.NewButton("Accept", func() {
+		if CurrentImage == nil {
+			dialog.ShowError(ErrImageNotSelected, w)
+			return
+		}
+
+		if n%2 == 0 {
+			dialog.ShowError(errors.New("filter size must be odd"), w)
+			return
+		}
+
+		CurrentImage.SaveStep()
+
+		sp.Median(CurrentImage.BaseImage, n)
+
+		CurrentImage.Refresh()
+	})
+
+	params := container.NewVBox(sizeContent)
+
+	paramsScroll := container.NewScroll(params)
+	paramsScroll.ScrollToBottom()
+
+	content := container.NewBorder(
+		nil,
+		btn,
+		nil,
+		nil,
+		params,
+	)
+
+	return Tool{
+		Canvas: content,
+		Title:  "Median",
+	}
+}
+
+func CreateLaplaceMenu(w fyne.Window) Tool {
+	btn := widget.NewButton("Accept", func() {
+		if CurrentImage == nil {
+			dialog.ShowError(ErrImageNotSelected, w)
+			return
+		}
+
+		CurrentImage.SaveStep()
+
+		sp.Laplace(CurrentImage.BaseImage)
+
+		CurrentImage.Refresh()
+	})
+
+	content := container.NewBorder(
+		nil,
+		btn,
+		nil,
+		nil,
+	)
+
+	return Tool{
+		Canvas: content,
+		Title:  "Laplace",
+	}
+}
+
+func CreateShiftDifMenu(w fyne.Window) Tool {
+	var shiftDifType sp.ShiftDifType
+
+	typeSelect := widget.NewSelect([]string{typeH1, typeH2, typeH3}, func(s string) {
+		switch s {
+		case typeH1:
+			shiftDifType = sp.ShiftDifH1
+		case typeH2:
+			shiftDifType = sp.ShiftDifH2
+		case typeH3:
+			shiftDifType = sp.ShiftDifH3
+		}
+	})
+
+	typeSelect.SetSelected(typeH1)
+
+	typeLabel := widget.NewLabel("Filter type:")
+	typeContent := container.NewHBox(typeLabel, typeSelect)
+
+	widget.NewEntry()
+
+	btn := widget.NewButton("Accept", func() {
+		if CurrentImage == nil {
+			dialog.ShowError(ErrImageNotSelected, w)
+			return
+		}
+
+		CurrentImage.SaveStep()
+
+		sp.ShiftDif(CurrentImage.BaseImage, shiftDifType)
+
+		CurrentImage.Refresh()
+	})
+
+	params := container.NewVBox(typeContent)
+
+	paramsScroll := container.NewScroll(params)
+	paramsScroll.ScrollToBottom()
+
+	content := container.NewBorder(
+		nil,
+		btn,
+		nil,
+		nil,
+		params,
+	)
+
+	return Tool{
+		Canvas: content,
+		Title:  "Shift&Difference",
+	}
+}
+
+func CreatePrewittMenu(w fyne.Window) Tool {
+	widget.NewEntry()
+
+	btn := widget.NewButton("Accept", func() {
+		if CurrentImage == nil {
+			dialog.ShowError(ErrImageNotSelected, w)
+			return
+		}
+
+		CurrentImage.SaveStep()
+
+		sp.Prewitt(CurrentImage.BaseImage)
+
+		CurrentImage.Refresh()
+	})
+
+	content := container.NewBorder(
+		nil,
+		btn,
+		nil,
+		nil,
+	)
+
+	return Tool{
+		Canvas: content,
+		Title:  "Prewitt",
+	}
+}
+
+func CreateKirschMenu(w fyne.Window) Tool {
+	widget.NewEntry()
+
+	btn := widget.NewButton("Accept", func() {
+		if CurrentImage == nil {
+			dialog.ShowError(ErrImageNotSelected, w)
+			return
+		}
+
+		CurrentImage.SaveStep()
+
+		sp.Kirsch(CurrentImage.BaseImage)
+
+		CurrentImage.Refresh()
+	})
+
+	content := container.NewBorder(
+		nil,
+		btn,
+		nil,
+		nil,
+	)
+
+	return Tool{
+		Canvas: content,
+		Title:  "Kirsch",
+	}
+}
+
+func CreateEmbossingMenu(w fyne.Window) Tool {
+	var embossingType sp.EmbossingType
+
+	typeSelect := widget.NewSelect([]string{typeH1, typeH2}, func(s string) {
+		switch s {
+		case typeH1:
+			embossingType = sp.EmbossingH1
+		case typeH2:
+			embossingType = sp.EmbossingH2
+		}
+	})
+
+	typeSelect.SetSelected(typeH1)
+
+	typeLabel := widget.NewLabel("Filter type:")
+	typeContent := container.NewHBox(typeLabel, typeSelect)
+
+	widget.NewEntry()
+
+	btn := widget.NewButton("Accept", func() {
+		if CurrentImage == nil {
+			dialog.ShowError(ErrImageNotSelected, w)
+			return
+		}
+
+		CurrentImage.SaveStep()
+
+		sp.Embossing(CurrentImage.BaseImage, embossingType)
+
+		CurrentImage.Refresh()
+	})
+
+	params := container.NewVBox(typeContent)
+
+	paramsScroll := container.NewScroll(params)
+	paramsScroll.ScrollToBottom()
+
+	content := container.NewBorder(
+		nil,
+		btn,
+		nil,
+		nil,
+		params,
+	)
+
+	return Tool{
+		Canvas: content,
+		Title:  "Embossing",
 	}
 }

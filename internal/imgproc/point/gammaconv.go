@@ -8,7 +8,7 @@ import (
 )
 
 func GammaConversion(processedImage *image.RGBA, gamma float64) {
-	imgproc.MultithreadPointProcessCycle(processedImage.Rect, func(x, y int) {
+	imgproc.MultithreadProcessCycle(processedImage.Rect, func(x, y int) {
 		rgba := processedImage.At(x, y).(color.RGBA)
 
 		processedImage.Set(x, y, color.RGBA{
